@@ -1,0 +1,92 @@
+---
+title: "DATA 607 TIDYVERSE Assignment - FIFA Elo Data under Blatter"
+author: "Soumya Ghosh"
+date: "December 10, 2018"
+output: 
+  html_document: 
+    toc: true
+    df_print: kable
+    theme: cerulean
+    highlight: pygments
+    css: ./lab.css
+  #  code_folding:hide
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+### Assignment Summary:
+
+The goal of this assignment is to work with FIFA Elo rating data set for 1998 and 2006 under Mr. Blatter as FIFA president from Fivethirtyeight's GitHub repo using tidyverse and ggplot libraries to perform sample analysis.
+
+### R Libraries:
+
+Load necessary libraries -
+
+```{r message=FALSE, warning=FALSE}
+library(kableExtra)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+```
+
+### Data Processing Steps :
+
+Below are the steps to be followed to generate the final output -
+
+1.  Import FIFA ratings data into R:
+
+```{r}
+#### FIFA Data
+fifaEloDF <- read.csv("https://raw.githubusercontent.com/fivethirtyeight/data/master/elo-blatter/elo_blatter.csv",header = TRUE, stringsAsFactors = FALSE)
+head(fifaEloDF) %>% kable() %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>% scroll_box(width="100%",height="300px")
+
+
+```
+
+2.  Use dplyr rank() function to calcuate and filter Top 10 countries for each of the six FIFA confederations based on population. For these coutries average change in elo rating between 1998 to 2006 is calculated.
+
+```{r}
+fifaEloSummaryDF <- fifaEloDF %>% arrange(confederation,popu06) %>% group_by(confederation) %>% mutate(rank=dense_rank(desc(popu06))) %>% filter(rank<=10) %>% mutate(eloChange = (elo15-elo98)) %>% mutate(avgChange = mean(eloChange))
+
+fifaEloSummaryDF$colour <- ifelse(fifaEloSummaryDF$eloChange < 0 , "orange", "green")
+fifaEloSummaryDF$flag <- ifelse(fifaEloSummaryDF$eloChange < 0 , "Negative Elo Change", "Positive Elo Change")
+
+fifaEloSummaryDF  %>% kable() %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>% scroll_box(width="100%",height="300px")
+```
+
+
+3.  Use ggplot to create Bar chart for change in Elo ratings for Top 10 countries based on population by confederation:
+
+```{r fig.width = 12, fig.height = 20}
+ggplot(fifaEloSummaryDF, aes(x = reorder(country, -rank), y = elo15, fill = flag, colour = colour)) + 
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label=elo15), hjust=-0.3, color="black", position = position_dodge(0.9), size=3.5) +
+  scale_fill_brewer(palette="Paired") + 
+  theme(axis.text.x=element_text(angle = 90, vjust = 0.5)) +
+  ggtitle("2015 FIFA Elo for Top 10 Countries By Confederation") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(x = "Countries", y = "FIFA Elo Rating 2015") +
+  facet_wrap(~confederation)+
+  facet_grid(rows = vars(confederation),scales = "free") +
+  scale_colour_identity() +
+  coord_flip()
+```
+
+
+
+## Conclusion:
+
+For each confederation, I have listed Elo ratings for the 10 largest countries in descending order of population, along with the confederation average, weighted by population.
+
+  - Europe (UEFA) and South America (CONMEBOL) remain the dominant soccer continents. Although some individual countries in Europe (Germany, Turkey) have improved their national teams since 1998 and others have seen them decline slightly (Italy, Russia), the continent as a whole has seen little overall change under Blatter.
+  
+  -  South America, however, has improved considerably. Although Brazil's Elo rating is not much changed from where it was in 1998, five of the 10 CONMEBOL countries (Argentina, Chile, Colombia, Venezuela and Uruguay) have improved their Elo rating by more than 100 points. This is interesting given that CONMEBOL is poorly represented under "one country, one vote," representing 4.8 percent of FIFA members but 13.5 percent of the World Cup audience.
+  
+## Referecne:
+
+https://fivethirtyeight.com/features/blatters-reign-at-fifa-hasnt-helped-soccers-poor/
